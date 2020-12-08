@@ -1,0 +1,11 @@
+[package]
+name = "nested_dep"
+version = "0.0.0"
+authors = ["Jason Newcomb <jsnewcomb@pm.me>"]
+edition = "2018"
+publish = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rm_rf = "=0.6"
