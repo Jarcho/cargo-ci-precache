@@ -20,9 +20,9 @@ fn assert_success(name: &str, c: &mut Command) {
     }
 }
 
-fn gather_items(test_dir: &Path) -> Vec<PathBuf> {
+fn gather_items(target_dir: &Path) -> Vec<PathBuf> {
     let meta = ci_precache::MetadataCommand::new()
-        .current_dir(test_dir)
+        .current_dir(target_dir)
         .exec()
         .unwrap();
     let mut items = Vec::new();
@@ -32,14 +32,15 @@ fn gather_items(test_dir: &Path) -> Vec<PathBuf> {
 
 #[test]
 fn update_nested_dep() {
-    let manifest = include_str!("nested-dep/Cargo.toml");
-    let lockfile = include_str!("nested-dep/Cargo.lock");
+    let manifest = include_str!("nested_dep/Cargo.toml");
+    let lockfile_update = include_str!("nested_dep/Cargo.lock.update");
+    let lockfile = include_str!("nested_dep/Cargo.lock");
     let config = "[build]\nincremental = false\n";
 
     let target_dir = env::current_dir()
         .unwrap()
         .join("target")
-        .join("nested-dep");
+        .join("nested_dep");
 
     // Ensure target dir is cleared.
     rm_rf::ensure_removed(&target_dir).unwrap();
@@ -64,14 +65,7 @@ fn update_nested_dep() {
     }
 
     // Update dependecy and rebuild. Should have old dependecies.
-    assert_success(
-        "cargo update",
-        cargo()
-            .current_dir(&target_dir)
-            .arg("update")
-            .arg("-p")
-            .arg("cfg-if"),
-    );
+    fs::write(target_dir.join("Cargo.lock"), lockfile_update).unwrap();
     assert_success("cargo build", cargo().current_dir(&target_dir).arg("build"));
     let items = gather_items(&target_dir);
 
@@ -103,3 +97,4 @@ fn update_nested_dep() {
     assert!(stacker);
     assert!(rm_rf);
 }
+
