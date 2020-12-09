@@ -9,7 +9,7 @@ use std::{
 };
 
 mod meta;
-use crate::meta::{Metadata, PackageSet};
+use crate::meta::Metadata;
 mod fingerprint;
 use crate::fingerprint::Fingerprint;
 
@@ -111,7 +111,7 @@ pub fn clear_cargo_cache(meta: Metadata, delete: &mut dyn FnMut(&Path)) -> Resul
                             .with_context(|| format!("error reading directory {}", path.display()))?
                             .filter_map(|e| e.ok())
                         {
-                            if !revs.contains(&e.file_name()) {
+                            if !revs.contains_key(&e.file_name()) {
                                 delete(&e.path());
                             }
                         }
@@ -143,7 +143,7 @@ pub fn clear_cargo_cache(meta: Metadata, delete: &mut dyn FnMut(&Path)) -> Resul
                             .with_context(|| format!("error reading directory {}", path.display()))?
                             .filter_map(|e| e.ok())
                         {
-                            if !packages.contains(&e.file_name()) {
+                            if !packages.contains_key(&e.file_name()) {
                                 delete(&e.path());
                             }
                         }
@@ -182,7 +182,7 @@ fn read_first_dep(file: &str) -> Option<PathBuf> {
     Some(path.into())
 }
 
-fn is_current_dep(cargo_home: &Path, current_deps: &PackageSet, dep: &Path) -> bool {
+fn get_dep_features<'a>(cargo_home: &Path, meta: &'a Metadata, dep: &Path) -> Option<&'a str> {
     if let Some(dep) = dep.strip_prefix(cargo_home).ok() {
         let mut c = dep.components();
         match c.next() {
@@ -192,11 +192,11 @@ fn is_current_dep(cargo_home: &Path, current_deps: &PackageSet, dep: &Path) -> b
                         Some(_), // checkouts
                         Some(path::Component::Normal(repo)),
                         Some(path::Component::Normal(rev)),
-                    ) => current_deps
-                        .git
-                        .get(repo)
-                        .map_or(false, |x| x.contains(rev)),
-                    _ => false,
+                    ) => meta.packages.git.get(repo).map_or(None, |x| {
+                        x.get(rev)
+                            .and_then(|id| meta.package_features.get(id).map(String::as_str))
+                    }),
+                    _ => None,
                 }
             }
             Some(path::Component::Normal(x)) if x == "registry" => {
@@ -205,17 +205,17 @@ fn is_current_dep(cargo_home: &Path, current_deps: &PackageSet, dep: &Path) -> b
                         Some(_), // registry
                         Some(path::Component::Normal(registry)),
                         Some(path::Component::Normal(package)),
-                    ) => current_deps
-                        .registry
-                        .get(registry)
-                        .map_or(false, |x| x.contains(package)),
-                    _ => false,
+                    ) => meta.packages.registry.get(registry).map_or(None, |x| {
+                        x.get(package)
+                            .and_then(|id| meta.package_features.get(id).map(String::as_str))
+                    }),
+                    _ => None,
                 }
             }
-            _ => false,
+            _ => None,
         }
     } else {
-        false
+        None
     }
 }
 
@@ -229,6 +229,7 @@ pub fn clear_target(meta: Metadata, delete: &mut dyn FnMut(&Path)) -> Result<()>
     // Get a list of metadata hashes for either local packages, or downloaded packages which are no
     // longer depended on.
     let mut outdated_meta_hashes = HashSet::<String>::new();
+    let mut meta_hash_features = HashMap::<String, &str>::new();
     for e in deps_dir
         .read_dir()
         .with_context(|| format!("error reading dir: {}", deps_dir.display()))?
@@ -247,18 +248,25 @@ pub fn clear_target(meta: Metadata, delete: &mut dyn FnMut(&Path)) -> Result<()>
         let dep = read_first_dep(&s)
             .ok_or_else(|| Error::msg(format!("error parsing file: {}", path.display())))?;
 
-        if !is_current_dep(&cargo_home, &meta.packages, &dep) {
-            let hash =
-                extract_meta_hash(path.file_stem().unwrap_or_default()).ok_or_else(|| {
-                    Error::msg(format!(
-                        "error extracting metadata hash from: {}",
-                        path.display()
-                    ))
-                })?;
-            outdated_meta_hashes.insert(hash.into());
+        let hash: String = extract_meta_hash(path.file_stem().unwrap_or_default())
+            .ok_or_else(|| {
+                Error::msg(format!(
+                    "error extracting metadata hash from: {}",
+                    path.display()
+                ))
+            })?
+            .into();
+        match get_dep_features(&cargo_home, &meta, &dep) {
+            None => {
+                outdated_meta_hashes.insert(hash);
+            }
+            Some(f) => {
+                meta_hash_features.insert(hash, f);
+            }
         }
     }
     let outdated_meta_hashes = outdated_meta_hashes;
+    let meta_hash_features = meta_hash_features;
 
     // Collect a list of fingerprints and their associated metadata hash.
     let mut fingerprints = Vec::<(String, Fingerprint)>::new();
@@ -299,8 +307,6 @@ pub fn clear_target(meta: Metadata, delete: &mut dyn FnMut(&Path)) -> Result<()>
     }
     let fingerprints = fingerprints;
 
-    dbg!(&fingerprints);
-
     // Make a map of fingerprint hashes to the actual fingerprint.
     let fingerprint_map: HashMap<u64, usize> = fingerprints
         .iter()
@@ -327,7 +333,12 @@ pub fn clear_target(meta: Metadata, delete: &mut dyn FnMut(&Path)) -> Result<()>
     let mut deps_to_flag: Vec<_> = fingerprints
         .iter()
         .enumerate()
-        .filter(|(_, (h, _))| outdated_meta_hashes.contains(h))
+        .filter(|(_, (h, f))| {
+            outdated_meta_hashes.contains(h)
+                || meta_hash_features
+                    .get(h)
+                    .map_or(false, |&feat| feat != f.features)
+        })
         .map(|(i, _)| i)
         .collect();
 

@@ -98,3 +98,56 @@ fn update_nested_dep() {
     assert!(rm_rf);
 }
 
+#[test]
+fn feature_change() {
+    let manifest = include_str!("feature_change/Cargo.toml");
+    let manifest_update = include_str!("feature_change/Cargo.toml.update");
+    let config = "[build]\nincremental = false\n";
+
+    let target_dir = env::current_dir()
+        .unwrap()
+        .join("target")
+        .join("feature_change");
+
+    // Ensure target dir is cleared.
+    rm_rf::ensure_removed(&target_dir).unwrap();
+
+    // Create test project.
+    fs::create_dir(&target_dir).unwrap();
+    fs::create_dir(target_dir.join("src")).unwrap();
+    fs::create_dir(target_dir.join(".cargo")).unwrap();
+    fs::write(target_dir.join("Cargo.toml"), manifest).unwrap();
+    fs::write(target_dir.join("src").join("lib.rs"), "").unwrap();
+    fs::write(target_dir.join(".cargo").join("config"), config).unwrap();
+
+    // Fresh build should have no deps to clear.
+    assert_success("cargo build", cargo().current_dir(&target_dir).arg("build"));
+    let items = gather_items(&target_dir);
+    for item in &items {
+        let name = item.file_name().unwrap().to_str().unwrap();
+        if !(name.starts_with("feature_change") || name.starts_with("libfeature_change")) {
+            panic!("unexpected dep {}", item.display());
+        }
+    }
+
+    // Update dependecy and rebuild. Should have old dependecies.
+    fs::write(target_dir.join("Cargo.toml"), manifest_update).unwrap();
+    assert_success("cargo build", cargo().current_dir(&target_dir).arg("build"));
+    let items = gather_items(&target_dir);
+
+    let mut feature_change = false;
+    let mut itoa = false;
+
+    for item in &items {
+        let name = item.file_name().unwrap().to_str().unwrap();
+        if name.starts_with("itoa") || name.starts_with("libitoa") {
+            itoa = true;
+        } else if name.starts_with("feature_change") || name.starts_with("libfeature_change") {
+            feature_change = true;
+        } else {
+            panic!("unexpected dep {}", item.display());
+        }
+    }
+    assert!(feature_change);
+    assert!(itoa);
+}
