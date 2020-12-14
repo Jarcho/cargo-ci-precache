@@ -88,7 +88,7 @@ impl Args {
         let target_dir = target_dir;
         let manifest_path = target_dir.join("Cargo.toml");
         let src_path = target_dir.join("src");
-        let config_path = target_dir.join(".config");
+        let config_path = target_dir.join(".cargo");
 
         // Make sure the target folder is empty before starting the test.
         rm_rf::ensure_removed(&target_dir).unwrap();
