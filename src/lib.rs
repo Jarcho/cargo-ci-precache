@@ -3,7 +3,7 @@ use std::{
     collections::{HashMap, HashSet},
     env,
     ffi::OsStr,
-    fs, io,
+    fs, io, iter,
     path::{self, Path, PathBuf},
     process::{Command, Stdio},
 };
@@ -219,6 +219,28 @@ fn get_dep_features<'a>(cargo_home: &Path, meta: &'a Metadata, dep: &Path) -> Op
     }
 }
 
+fn read_dep_file<'a>(
+    path: &Path,
+    cargo_home: &Path,
+    meta: &'a Metadata,
+) -> Result<(String, Option<&'a str>)> {
+    let s = fs::read_to_string(&path)
+        .with_context(|| format!("error reading file: {}", path.display()))?;
+
+    let dep = read_first_dep(&s)
+        .ok_or_else(|| Error::msg(format!("error parsing file: {}", path.display())))?;
+
+    let hash: String = extract_meta_hash(path.file_stem().unwrap_or_default())
+        .ok_or_else(|| {
+            Error::msg(format!(
+                "error extracting metadata hash from: {}",
+                path.display()
+            ))
+        })?
+        .into();
+    Ok((hash, get_dep_features(cargo_home, meta, &dep)))
+}
+
 pub fn clear_target(meta: Metadata, delete: &mut dyn FnMut(&Path)) -> Result<()> {
     let cargo_home = home::cargo_home()?;
 
@@ -230,38 +252,34 @@ pub fn clear_target(meta: Metadata, delete: &mut dyn FnMut(&Path)) -> Result<()>
     // longer depended on.
     let mut outdated_meta_hashes = HashSet::<String>::new();
     let mut meta_hash_features = HashMap::<String, &str>::new();
-    for e in deps_dir
+    for path in build_dir
         .read_dir()
-        .with_context(|| format!("error reading dir: {}", deps_dir.display()))?
+        .with_context(|| format!("error reading dir: {}", build_dir.display()))?
+        .map(|e| -> Result<_> {
+            let e = e.with_context(|| format!("error reading dir: {}", build_dir.display()))?;
+            Ok(e.path())
+        })
+        .chain(iter::once(Ok(deps_dir.clone())))
     {
-        let path = e
-            .with_context(|| format!("error reading dir: {}", deps_dir.display()))?
-            .path();
-
-        if path.extension() != Some(OsStr::new("d")) {
-            continue;
-        }
-
-        let s = fs::read_to_string(&path)
-            .with_context(|| format!("error reading file: {}", path.display()))?;
-
-        let dep = read_first_dep(&s)
-            .ok_or_else(|| Error::msg(format!("error parsing file: {}", path.display())))?;
-
-        let hash: String = extract_meta_hash(path.file_stem().unwrap_or_default())
-            .ok_or_else(|| {
-                Error::msg(format!(
-                    "error extracting metadata hash from: {}",
-                    path.display()
-                ))
-            })?
-            .into();
-        match get_dep_features(&cargo_home, &meta, &dep) {
-            None => {
-                outdated_meta_hashes.insert(hash);
+        let path = path?;
+        for e in path
+            .read_dir()
+            .with_context(|| format!("error reading dir: {}", path.display()))?
+        {
+            let path = e
+                .with_context(|| format!("error reading dir: {}", path.display()))?
+                .path();
+            if path.extension() != Some(OsStr::new("d")) {
+                continue;
             }
-            Some(f) => {
-                meta_hash_features.insert(hash, f);
+            let (hash, features) = read_dep_file(&path, &cargo_home, &meta)?;
+            match features {
+                None => {
+                    outdated_meta_hashes.insert(hash);
+                }
+                Some(f) => {
+                    meta_hash_features.insert(hash, f);
+                }
             }
         }
     }

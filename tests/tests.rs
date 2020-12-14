@@ -153,7 +153,6 @@ impl Args {
                 Some(hash) => Some(format!(
                     "Wrong number of versions removed for {}, found {}, expected {}\n",
                     name,
-                    count,
                     hash.len(),
                     count,
                 )),
@@ -214,6 +213,14 @@ fn nested_dep_propagate() {
     args!("nested_dep" => "nested_dep" {
         "cfg_if" 1,
         "log" 1,
+    })
+    .run_test()
+}
+
+#[test]
+fn build_script_update() {
+    args!("build_script" => "build_script" {
+        "bitflags" 3,
     })
     .run_test()
 }
