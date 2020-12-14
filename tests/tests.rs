@@ -155,6 +155,7 @@ impl Args {
                     name,
                     count,
                     hash.len(),
+                    count,
                 )),
                 None => Some(format!(
                     "Wrong number of versions removed for {}, found {}, expected {}\n",
