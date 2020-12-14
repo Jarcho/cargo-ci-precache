@@ -8,4 +8,5 @@ publish = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rm_rf = "=0.6"
+log = "=0.4.11"
+cfg-if = "=0.1.9"

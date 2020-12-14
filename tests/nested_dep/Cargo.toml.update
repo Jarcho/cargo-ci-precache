@@ -1,5 +1,5 @@
 [package]
-name = "feature_change"
+name = "nested_dep"
 version = "0.0.0"
 authors = ["Jason Newcomb <jsnewcomb@pm.me>"]
 edition = "2018"
@@ -7,7 +7,6 @@ publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies.itoa]
-version = "=0.4.6"
-default-features = false
-features = ["std"]
+[dependencies]
+log = "=0.4.11"
+cfg-if = "=0.1.10"
