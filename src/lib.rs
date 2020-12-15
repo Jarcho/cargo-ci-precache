@@ -232,9 +232,29 @@ fn read_dep_file<'a>(
 pub fn clear_target(meta: Metadata, delete: &mut dyn FnMut(&Path)) -> Result<()> {
     let cargo_home = home::cargo_home()?;
 
-    let build_dir = path!(&meta.target_directory, "debug", "build");
-    let deps_dir = path!(&meta.target_directory, "debug", "deps");
-    let fingerprint_dir = path!(&meta.target_directory, "debug", ".fingerprint");
+    let target_dir = path!(&meta.target_directory, "debug");
+    let build_dir = path!(&target_dir, "build");
+    let deps_dir = path!(&target_dir, "deps");
+    let fingerprint_dir = path!(&target_dir, ".fingerprint");
+
+    match target_dir.read_dir() {
+        Ok(iter) => {
+            for item in iter {
+                let item =
+                    item.with_context(|| format!("error reading dir: {}", target_dir.display()))?;
+                if item.file_type().map_or(false, |t| t.is_file()) {
+                    let path = item.path();
+                    if path.file_name().unwrap_or_default() != ".cargo_lock" {
+                        delete(&path)
+                    }
+                }
+            }
+        }
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => {
+            return Err(e).with_context(|| format!("error reading dir: {}", target_dir.display()))
+        }
+    }
 
     // Get a list of metadata hashes for either local packages, or downloaded packages which are no
     // longer depended on.
