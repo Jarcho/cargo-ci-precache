@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+env:
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  test-stable:
+    strategy:
+      matrix:
+        os: [ubuntu, windows, macos]
+        include:
+          - os: ubuntu
+            components: rustfmt, clippy
+    runs-on: ${{ matrix.os }}-latest
+
+    name: ${{ matrix.os }}-stable
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        id: rustup
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+          components: ${{ matrix.components }}
+
+      - name: Cache dependencies
+        uses: actions/cache@v2
+        id: cache-deps
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+          key: deps-${{ hashfiles('./Cargo.lock') }}
+          restore-keys: deps
+
+      - name: Cache build dependencies
+        uses: actions/cache@v2
+        id: cache-deps-build
+        with:
+          path: |
+            ./target/debug
+          key: build-deps-${{ steps.rustup.outputs.rustc-hash }}-${{ hashfiles('./Cargo.lock') }}
+          restore-keys: build-deps-${{ steps.rustup.outputs.rustc-hash }}
+
+      - name: Fetch Dependencies
+        if: steps.cache-deps.outputs.cache-hit != true
+        run: cargo fetch
+
+      - name: Test
+        run: cargo test --all
+
+      - name: Format
+        if: matrix.os == 'ubuntu'
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        if: matrix.os == 'ubuntu'
+        run: cargo clippy --all -- -D warnings
+
+      - name: Pre-cache fetch dependencies
+        if: steps.cache-deps.outputs.cache-hit
+        run: cargo run -- cargo-cache
+
+      - name: Pre-cache build dependencies
+        if: steps.cache-build-deps.outputs.cache-hit
+        run: cargo run -- target

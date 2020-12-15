@@ -1,0 +1,132 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * 0"
+
+env:
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  check-update:
+    runs-on: ubuntu-latest
+
+    name: Check for update
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        id: rustup
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: cargo update
+        run: |
+          cp Cargo.lock Cargo.lock.old
+          cargo update
+          echo
+
+      - name: Upload lock file
+        if: hashFiles('./Cargo.lock') != hashFiles('./Cargo.lock.old')
+        uses: actions/upload-artifact@v2
+        with:
+          name: lockfile
+          path: |
+            ./Cargo.lock
+
+      - outputs:
+        has-updates: ${{ hashFiles('./Cargo.lock') != hashFiles('./Cargo.lock.old') }}
+
+  test-update:
+    needs: check-update
+    if: needs.check-update.outputs.has-updates
+
+    strategy:
+      matrix:
+        os: [ubuntu, windows, macos]
+        include:
+          - os: ubuntu
+            components: rustfmt, clippy
+    runs-on: ${{ matrix.os }}-latest
+
+    name: test-${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        id: rustup
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+          components: ${{ matrix.components }}
+
+      - name: Download lock file
+        uses: actions/download-artifact@v2
+        with:
+          name: lockfile
+
+      - name: Cache dependencies
+        uses: actions/cache@v2
+        id: cache-deps
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+          key: deps-${{ hashfiles('./Cargo.lock') }}
+          restore-keys: deps
+
+      - name: Cache build dependencies
+        uses: actions/cache@v2
+        id: cache-deps-build
+        with:
+          path: |
+            ./target/debug
+          key: build-deps-${{ steps.rustup.outputs.rustc-hash }}-${{ hashfiles('./Cargo.lock') }}
+          restore-keys: build-deps-${{ steps.rustup.outputs.rustc-hash }}
+
+      - name: Test
+        run: cargo test --all
+
+      - name: Format
+        if: matrix.os == 'ubuntu'
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        if: matrix.os == 'ubuntu'
+        run: cargo clippy --all -- -D warnings
+
+      - name: Pre-cache fetch dependencies
+        if: steps.cache-deps.outputs.cache-hit
+        run: cargo run -- cargo-cache
+
+      - name: Pre-cache build dependencies
+        if: steps.cache-build-deps.outputs.cache-hit
+        run: cargo run -- target
+
+  push-lockfile:
+    needs: test-update
+    if: needs.test-update.result == 'success'
+
+    name: Push lock file
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Download lock file
+        uses: actions/download-artifact@v2
+        with:
+          name: lockfile
+
+      - name: Push lock file
+        run: |
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+          git add Cargo.lock
+          git commit -m "Update lock file"
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY
+          git push
