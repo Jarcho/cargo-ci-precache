@@ -92,42 +92,30 @@ fn extract_meta_hash(p: &OsStr) -> Option<&str> {
 
 /// Calls delete for every item in the global cargo cache not referenced by the given metadata.
 ///
-/// Notes: Only items in ~/.cargo/registry/src and ~/.cargo/git/checkouts are considered.
-/// Items in ~/.cargo/registry/cache and ~/.cargo/git/ are not deleted.
+/// Notes: Only items in ~/.cargo/registry/cache and ~/.cargo/git/db are considered.
+/// Items in ~/.cargo/registry/src and ~/.cargo/git/checkouts are not deleted.
 pub fn clear_cargo_cache(meta: Metadata, delete: &mut dyn FnMut(&Path)) -> Result<()> {
     let cargo_home = home::cargo_home()?;
-    let git_checkout_dir = path!(&cargo_home, "git", "checkouts");
-    let registry_src_dir = path!(&cargo_home, "registry", "src");
+    let git_db_dir = path!(&cargo_home, "git", "db");
+    let registry_cache_dir = path!(&cargo_home, "registry", "cache");
 
-    match git_checkout_dir.read_dir() {
+    match git_db_dir.read_dir() {
         Ok(iter) => {
             for e in iter.filter_map(|e| e.ok()) {
                 let path = e.path();
                 match meta.packages.git.get(path.file_name().unwrap_or_default()) {
-                    Some(revs) => {
-                        for e in e
-                            .path()
-                            .read_dir()
-                            .with_context(|| format!("error reading directory {}", path.display()))?
-                            .filter_map(|e| e.ok())
-                        {
-                            if !revs.contains_key(&e.file_name()) {
-                                delete(&e.path());
-                            }
-                        }
-                    }
+                    Some(_) => (),
                     None => delete(&path),
                 }
             }
         }
         Err(e) if e.kind() == io::ErrorKind::NotFound => (),
         Err(e) => {
-            return Err(e)
-                .with_context(|| format!("error reading dir: {}", git_checkout_dir.display()))
+            return Err(e).with_context(|| format!("error reading dir: {}", git_db_dir.display()))
         }
     }
 
-    match registry_src_dir.read_dir() {
+    match registry_cache_dir.read_dir() {
         Ok(iter) => {
             for e in iter.filter_map(|e| e.ok()) {
                 let path = e.path();
@@ -155,7 +143,7 @@ pub fn clear_cargo_cache(meta: Metadata, delete: &mut dyn FnMut(&Path)) -> Resul
         Err(e) if e.kind() == io::ErrorKind::NotFound => (),
         Err(e) => {
             return Err(e)
-                .with_context(|| format!("error reading dir: {}", registry_src_dir.display()))
+                .with_context(|| format!("error reading dir: {}", registry_cache_dir.display()))
         }
     }
 
