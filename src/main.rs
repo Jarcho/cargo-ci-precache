@@ -1,6 +1,6 @@
 use anyhow::{Context, Error, Result};
-use clap::Clap;
 use ci_precache::MetadataCommand;
+use clap::Clap;
 use std::{
     env, fs, io,
     path::{Path, PathBuf},
