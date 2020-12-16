@@ -13,7 +13,7 @@ jobs:
     name: Check for update
     runs-on: ubuntu-latest
     outputs:
-      has-updates: ${{ steps.update.output.has-updates }}
+      has-updates: ${{ steps.update.outputs.has-updates }}
 
     steps:
       - uses: actions/checkout@v2
@@ -29,10 +29,10 @@ jobs:
         run: |
           cp Cargo.lock Cargo.lock.old
           cargo update
-          cmp --silent Cargo.lock Carg.lock.old && echo "::set-output name=has-updates::false" || echo "::set-output name=has-updates::true"
+          cmp --silent Cargo.lock Cargo.lock.old && echo "::set-output name=has-updates::false" || echo "::set-output name=has-updates::true"
 
       - name: Upload lock file
-        if: steps.update.output.has-updates == 'true'
+        if: steps.update.outputs.has-updates == 'true'
         uses: actions/upload-artifact@v2
         with:
           name: lockfile
