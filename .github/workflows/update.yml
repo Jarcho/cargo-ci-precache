@@ -13,7 +13,7 @@ jobs:
     name: Check for update
     runs-on: ubuntu-latest
     outputs:
-      has-updates: ${{ hashFiles('./Cargo.lock') != hashFiles('./Cargo.lock.old') }}
+      has-updates: ${{ steps.update.output.has-updates }}
 
     steps:
       - uses: actions/checkout@v2
@@ -25,13 +25,14 @@ jobs:
           override: true
 
       - name: cargo update
+        id: update
         run: |
           cp Cargo.lock Cargo.lock.old
           cargo update
-          echo
+          cmp --silent Cargo.lock Carg.lock.old && echo "::set-output name=has-updates::false" || echo "::set-output name=has-updates::true"
 
       - name: Upload lock file
-        if: hashFiles('./Cargo.lock') != hashFiles('./Cargo.lock.old')
+        if: steps.update.output.has-updates
         uses: actions/upload-artifact@v2
         with:
           name: lockfile
