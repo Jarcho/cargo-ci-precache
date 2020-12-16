@@ -32,7 +32,7 @@ jobs:
           cmp --silent Cargo.lock Carg.lock.old && echo "::set-output name=has-updates::false" || echo "::set-output name=has-updates::true"
 
       - name: Upload lock file
-        if: steps.update.output.has-updates
+        if: steps.update.output.has-updates == 'true'
         uses: actions/upload-artifact@v2
         with:
           name: lockfile
@@ -41,7 +41,7 @@ jobs:
 
   test-update:
     needs: check-update
-    if: needs.check-update.outputs.has-updates
+    if: needs.check-update.outputs.has-updates == 'true'
 
     strategy:
       matrix:
@@ -80,12 +80,16 @@ jobs:
 
       - name: Cache build dependencies
         uses: actions/cache@v2
-        id: cache-deps-build
+        id: cache-build-deps
         with:
           path: |
             ./target/debug
           key: build-deps-${{ steps.rustup.outputs.rustc-hash }}-${{ hashfiles('./Cargo.lock') }}
           restore-keys: build-deps-${{ steps.rustup.outputs.rustc-hash }}
+
+      - name: Fetch Dependencies
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: cargo fetch
 
       - name: Test
         run: cargo test --all
@@ -98,13 +102,13 @@ jobs:
         if: matrix.os == 'ubuntu'
         run: cargo clippy --all -- -D warnings
 
-      - name: Pre-cache fetch dependencies
-        if: steps.cache-deps.outputs.cache-hit
-        run: cargo run -- cargo-cache
+      - name: Pre-cache dependencies
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: cargo run -- cargo-cache --temp=./temp
 
       - name: Pre-cache build dependencies
-        if: steps.cache-build-deps.outputs.cache-hit
-        run: cargo run -- target
+        if: steps.cache-build-deps.outputs.cache-hit != 'true'
+        run: cargo run -- target --temp=./temp
 
   push-lockfile:
     needs: test-update
