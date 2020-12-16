@@ -22,12 +22,12 @@ fn cargo_build(target: &Path) {
 }
 
 fn gather_items(target_dir: &Path) -> Vec<PathBuf> {
-    let meta = ci_precache::MetadataCommand::new()
+    let meta = cargo_ci_precache::MetadataCommand::new()
         .current_dir(target_dir)
         .exec()
         .unwrap();
     let mut items = Vec::new();
-    ci_precache::clear_target(meta, &mut |path| items.push(PathBuf::from(path))).unwrap();
+    cargo_ci_precache::clear_target(meta, &mut |path| items.push(PathBuf::from(path))).unwrap();
     items
 }
 

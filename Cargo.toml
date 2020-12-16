@@ -1,5 +1,5 @@
 [package]
-name = "ci-precache"
+name = "cargo-ci-precache"
 version = "0.1.0"
 authors = ["Jason Newcomb <jsnewcomb@pm.me>"]
 edition = "2018"

@@ -1,5 +1,5 @@
 use anyhow::{Context, Error, Result};
-use ci_precache::MetadataCommand;
+use cargo_ci_precache::MetadataCommand;
 use clap::Clap;
 use std::{
     env, fs, io,
@@ -136,7 +136,7 @@ fn main() -> Result<()> {
     };
 
     match args.mode {
-        Mode::CargoCache => ci_precache::clear_cargo_cache(meta, &mut delete),
-        Mode::Target => ci_precache::clear_target(meta, &mut delete),
+        Mode::CargoCache => cargo_ci_precache::clear_cargo_cache(meta, &mut delete),
+        Mode::Target => cargo_ci_precache::clear_target(meta, &mut delete),
     }
 }
