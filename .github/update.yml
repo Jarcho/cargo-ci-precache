@@ -2,8 +2,8 @@ name: CI
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 0 * * 0"
+  # schedule:
+  #   - cron: "0 0 * * 0"
 
 env:
   CARGO_INCREMENTAL: 0
@@ -129,4 +129,5 @@ jobs:
           git add Cargo.lock
           git commit -m "Update lock file"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY
-          git push
+
+#          git push
