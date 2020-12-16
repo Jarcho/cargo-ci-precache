@@ -123,7 +123,10 @@ impl Args {
         let mut removed_crates = HashMap::<_, HashSet<String>>::new();
         for item in gather_items(&target_dir) {
             let file_name = item.file_stem().unwrap().to_str().unwrap();
-            let (name, hash) = split_name_hash(file_name).unwrap();
+            let (name, hash) = match split_name_hash(file_name) {
+                Some(x) => x,
+                None => continue,
+            };
 
             if self.expected_removals.contains_key(name.as_str()) {
                 removed_crates.entry(name).or_default().insert(hash.into());

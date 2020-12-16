@@ -244,7 +244,7 @@ pub fn clear_target(meta: Metadata, delete: &mut dyn FnMut(&Path)) -> Result<()>
                     item.with_context(|| format!("error reading dir: {}", target_dir.display()))?;
                 if item.file_type().map_or(false, |t| t.is_file()) {
                     let path = item.path();
-                    if path.file_name().unwrap_or_default() != ".cargo_lock" {
+                    if path.file_name().unwrap_or_default() != ".cargo-lock" {
                         delete(&path)
                     }
                 }
