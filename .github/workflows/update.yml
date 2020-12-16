@@ -10,9 +10,10 @@ env:
 
 jobs:
   check-update:
-    runs-on: ubuntu-latest
-
     name: Check for update
+    runs-on: ubuntu-latest
+    outputs:
+      has-updates: ${{ hashFiles('./Cargo.lock') != hashFiles('./Cargo.lock.old') }}
 
     steps:
       - uses: actions/checkout@v2
@@ -36,9 +37,6 @@ jobs:
           name: lockfile
           path: |
             ./Cargo.lock
-
-      - outputs:
-        has-updates: ${{ hashFiles('./Cargo.lock') != hashFiles('./Cargo.lock.old') }}
 
   test-update:
     needs: check-update
