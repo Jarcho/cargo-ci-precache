@@ -28,7 +28,7 @@ enum CachedPackage<'a> {
 }
 impl<'a> CachedPackage<'a> {
     fn new(p: &'a Package) -> Option<Self> {
-        let source = p.source.as_ref().map(String::as_str)?;
+        let source = p.source.as_deref()?;
         Some(if source.starts_with("registry+") {
             Self::Registry {
                 registry: p.manifest_path.parent()?.parent()?.file_name()?,

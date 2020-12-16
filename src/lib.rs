@@ -23,6 +23,7 @@ macro_rules! path {
 
 pub struct MetadataCommand(Command);
 impl MetadataCommand {
+    #[allow(clippy::clippy::new_without_default)]
     pub fn new() -> Self {
         let mut c = Command::new(env::var_os("CARGO").unwrap_or_else(|| "cargo".into()));
         c.arg("metadata")
@@ -87,7 +88,7 @@ impl MetadataCommand {
 }
 
 fn extract_meta_hash(p: &OsStr) -> Option<&str> {
-    p.to_str()?.rsplitn(2, "-").next()
+    p.to_str()?.rsplitn(2, '-').next()
 }
 
 /// Calls delete for every item in the global cargo cache not referenced by the given metadata.
@@ -158,8 +159,8 @@ fn read_first_dep(file: &str) -> Option<PathBuf> {
 
     // paths are space separated, but may contain escaped spaces.
     let mut path = String::new();
-    for s in iter.next()?.trim().split(" ") {
-        if s.ends_with(' ') {
+    for s in iter.next()?.trim().split(' ') {
+        if let Some(s) = s.strip_suffix('\\') {
             path.push_str(&s[..s.len() - 1]);
             path.push(' ');
         } else {
@@ -171,7 +172,7 @@ fn read_first_dep(file: &str) -> Option<PathBuf> {
 }
 
 fn get_dep_features<'a>(cargo_home: &Path, meta: &'a Metadata, dep: &Path) -> Option<&'a str> {
-    if let Some(dep) = dep.strip_prefix(cargo_home).ok() {
+    if let Ok(dep) = dep.strip_prefix(cargo_home) {
         let mut c = dep.components();
         match c.next() {
             Some(path::Component::Normal(x)) if x == "git" => {
@@ -180,10 +181,12 @@ fn get_dep_features<'a>(cargo_home: &Path, meta: &'a Metadata, dep: &Path) -> Op
                         Some(_), // checkouts
                         Some(path::Component::Normal(repo)),
                         Some(path::Component::Normal(rev)),
-                    ) => meta.packages.git.get(repo).map_or(None, |x| {
-                        x.get(rev)
-                            .and_then(|id| meta.package_features.get(id).map(String::as_str))
-                    }),
+                    ) => meta
+                        .packages
+                        .git
+                        .get(repo)
+                        .and_then(|x| x.get(rev))
+                        .and_then(|id| meta.package_features.get(id).map(String::as_str)),
                     _ => None,
                 }
             }
@@ -193,10 +196,12 @@ fn get_dep_features<'a>(cargo_home: &Path, meta: &'a Metadata, dep: &Path) -> Op
                         Some(_), // registry
                         Some(path::Component::Normal(registry)),
                         Some(path::Component::Normal(package)),
-                    ) => meta.packages.registry.get(registry).map_or(None, |x| {
-                        x.get(package)
-                            .and_then(|id| meta.package_features.get(id).map(String::as_str))
-                    }),
+                    ) => meta
+                        .packages
+                        .registry
+                        .get(registry)
+                        .and_then(|x| x.get(package))
+                        .and_then(|id| meta.package_features.get(id).map(String::as_str)),
                     _ => None,
                 }
             }
