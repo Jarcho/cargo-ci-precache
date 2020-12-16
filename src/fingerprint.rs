@@ -88,9 +88,11 @@ pub enum LocalFingerprint {
 
 #[cfg(test)]
 mod test {
-    #[test]
-    fn fingerprint_hash() {
-        let file = r#"{
+    // Hash result changes based on the target.
+    // Will rustc version also change the result?
+
+    #[allow(unused)]
+    static FILE: &str = r#"{
             "rustc": 5115962679530443550,
             "features": "[]",
             "target": 16343417806311904822,
@@ -116,7 +118,39 @@ mod test {
             "config": 0
         }"#;
 
-        let f: super::Fingerprint = serde_json::from_str(file).unwrap();
+    #[test]
+    #[cfg(all(
+        target_arch = "x86_64",
+        target_vendor = "pc",
+        target_os = "windows",
+        target_env = "msvc"
+    ))]
+    fn fingerprint_hash() {
+        let f: super::Fingerprint = serde_json::from_str(FILE).unwrap();
         assert_eq!(f.get_hash(), 15480347459326620707);
+    }
+
+    #[test]
+    #[cfg(all(
+        target_arch = "x86",
+        target_vendor = "pc",
+        target_os = "windows",
+        target_env = "msvc"
+    ))]
+    fn fingerprint_hash() {
+        let f: super::Fingerprint = serde_json::from_str(FILE).unwrap();
+        assert_eq!(f.get_hash(), 10502132094877413932);
+    }
+
+    #[test]
+    #[cfg(all(
+        target_arch = "x86_64",
+        target_vendor = "unknown",
+        target_os = "linux",
+        target_env = "gnu"
+    ))]
+    fn fingerprint_hash() {
+        let f: super::Fingerprint = serde_json::from_str(FILE).unwrap();
+        assert_eq!(f.get_hash(), 16826414366161678886);
     }
 }
