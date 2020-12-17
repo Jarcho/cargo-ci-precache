@@ -1,4 +1,4 @@
-name: CI
+name: Test
 
 on:
   push:
@@ -86,3 +86,4 @@ jobs:
       - name: Pre-cache build dependencies
         if: steps.cache-build-deps.outputs.cache-hit != 'true'
         run: cargo run -- target --temp=./temp
+
