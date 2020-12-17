@@ -3,8 +3,22 @@ name: CI
 on:
   push:
     branches: [main]
+    paths:
+      - "!.github/**"
+      - ".github/ci.yaml"
+      - "src/**"
+      - "test/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
   pull_request:
     branches: [main]
+    paths:
+      - "!.github/**"
+      - ".github/ci.yaml"
+      - "src/**"
+      - "test/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
 
 env:
   CARGO_INCREMENTAL: 0
@@ -47,8 +61,8 @@ jobs:
         with:
           path: |
             ./target/debug
-          key: build-deps-${{ steps.rustup.outputs.rustc-hash }}-${{ hashfiles('./Cargo.lock') }}
-          restore-keys: build-deps-${{ steps.rustup.outputs.rustc-hash }}
+          key: build-deps-${{ steps.rustup.outputs.rustc_hash }}-${{ hashfiles('./Cargo.lock') }}
+          restore-keys: build-deps-${{ steps.rustup.outputs.rustc_hash }}
 
       - name: Fetch Dependencies
         if: steps.cache-deps.outputs.cache-hit != 'true'
