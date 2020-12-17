@@ -87,3 +87,108 @@ jobs:
         if: steps.cache-build-deps.outputs.cache-hit != 'true'
         run: cargo run -- target --temp=./temp
 
+  create-release:
+    name: Create release tag
+    needs: test-stable
+    if: github.event_name == 'push' && startsWith(github.event.head_commit.message, 'Release v') && needs.test-stable.result == 'success'
+    runs-on: ubuntu-latest
+
+    outputs:
+      upload_url: ${{ steps.create-release.outputs.upload_url }}
+      version: ${{ steps.check-version.outputs.version }}
+
+    steps:
+      - name: Check release version
+        id: check-version
+        run: |
+          v=$(echo "${{ github.event.head_commit.message }}" | cut -c 10-)
+          toml_v=$(grep 'version *= *' Cargo.toml | head -1 | cut -d \" -f 2)
+          if [ "$v" != "$toml_v" ]; then
+            echo "::error ::Commit message version ($v) does not match Cargo.toml ($toml_v)"
+            exit 1
+          fi
+          echo "::set-output name=version::$v"
+
+      - name: Create release
+        id: create-release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.check-version.outputs.version }}
+          release_name: v${{ steps.check-version.outputs.version }}
+          draft: true
+          prerelease: false
+
+  build-release:
+    name: Build release ${{ matrix.os }}
+    needs: create-release
+    runs-on: ${{ matrix.os }}-latest
+
+    strategy:
+      matrix:
+        os: [ubuntu, windows, macos]
+        include:
+          - os: ubuntu
+            asset: cargo-ci-precache_ubuntu_v${{ needs.create-release.outputs.version }}.tar.gz
+          - os: windows
+            asset: cargo-ci-precache_windows_v${{ needs.create-release.outputs.version }}.7z
+          - os: macos
+            asset: cargo-ci-precache_macos_v${{ needs.create-release.outputs.version }}.tar.gz
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        id: rustup
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Cache dependencies
+        uses: actions/cache@v2
+        id: cache-deps
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+          key: deps-${{ hashfiles('./Cargo.lock') }}
+
+      - name: Build release
+        env:
+          RUSTFLAGS: -C link-arg=-s
+        run: |
+          cargo build --release --bins
+
+      - name: Package release (Windows)
+        if: matrix.os == 'windows'
+        run: |
+          7z a cargo-ci-precache-${{ matrix.os }}-v${{ needs.create-release.outputs.version }}.7z .\target\release\cargo-ci-precache.exe
+
+      - name: Upload release (Windows)
+        if: matrix.os == 'windows'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./cargo-ci-precache-${{ matrix.os }}-v${{ needs.create-release.outputs.version }}.7z
+          asset_name: cargo-ci-precache-${{ matrix.os }}-v${{ needs.create-release.outputs.version }}.7z
+          asset_content_type: application/x-7z-compressed
+
+      - name: Package release
+        if: matrix.os != 'windows'
+        run: |
+          cd target/release
+          tar -czf ../../cargo-ci-precache-v${{ needs.create-release.outputs.version }}-${{ matrix.os }}.tar.gz cargo-ci-precache
+
+      - name: Upload release
+        if: matrix.os != 'windows'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./cargo-ci-precache-v${{ needs.create-release.outputs.version }}-${{ matrix.os }}.tar.gz
+          asset_name: cargo-ci-precache-v${{ needs.create-release.outputs.version }}-${{ matrix.os }}.tar.gz
+          asset_content_type: application/gzip
