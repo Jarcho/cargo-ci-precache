@@ -1,0 +1,128 @@
+name: Release
+
+on:
+  workflow_run:
+
+jobs:
+  create-release:
+    name: Create release tag
+    needs: test-stable
+    if: github.event_name == 'push' && startsWith(github.event.head_commit.message, 'Release v') && needs.test-stable.result == 'success'
+    runs-on: ubuntu-latest
+
+    outputs:
+      upload_url: ${{ steps.create-release.outputs.upload_url }}
+      version: ${{ steps.read-version.outputs.version }}
+
+    steps:
+      - name: Read version
+        id: read-version
+        run: |
+          v=$(grep ' *version *= *' Cargo.toml | head -1 | cut -d \" -f 2)
+          echo "::set-output name=version::v$v"
+
+      # fail if the tag already exists
+      - name: Check for version tag
+        run: |
+          if [ -n $(git tag -l "${{ steps.read-version.outputs.version }}") ]; then
+            exit 1
+          fi
+
+      - name: Extract & update changelog
+        run: |
+          cat ./CHANGELOG.md \
+          | sed -n '/^## \[Unreleased\]$/,/^## \|^\[Unreleased\]/p' \
+          | head -n -1 \
+          > RELEASE_NOTES.md
+          cp ./CHANGELOG.md CHANGELOG.md.old
+          cat ./CHANGELOG.md.old \
+          | sed "s/^## \[Unreleased\]$/&\n\n## [${{ steps.read-version.outputs.version }}] - $(date -uI)/" \
+          | sed 's/^\[Unreleased\]:.*/&\n[${{ steps.read-version.outputs.version }}]: https:\/\/github.com\/Jarcho\/cargo-ci-precache\/releases\/${{ steps.read-version.outputs.version }}/' \
+          > CHANGELOG.md
+
+      - name: Commit changelog update
+        run: |
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+          git add CHANGELOG.md
+          git commit -m "Update changelog to ${{ steps.read-version.outputs.version }}"
+          git tag -a "${{ steps.read-version.outputs.version }}" -m "Release ${{ steps.read-version.outputs.version }}"
+          git push 'https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY' --follow-tags
+
+      - name: Create release
+        id: create-release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.read-version.outputs.version }}
+          release_name: ${{ steps.read-version.outputs.version }}
+          draft: true
+          prerelease: false
+
+  build-release:
+    needs: create-release
+    if: needs.create-release.result == 'success'
+
+    name: Build release ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}-latest
+
+    strategy:
+      matrix:
+        os: [ubuntu, windows, macos]
+        include:
+          - os: ubuntu
+            asset: cargo-ci-precache_ubuntu_${{ needs.create-release.outputs.version }}.tar.gz
+            asset-type: application/gzip
+          - os: windows
+            asset: cargo-ci-precache_windows_${{ needs.create-release.outputs.version }}.7z
+            asset-type: application/x-7z-compressed
+          - os: macos
+            asset: cargo-ci-precache_macos_${{ needs.create-release.outputs.version }}.tar.gz
+            asset-type: application/gzip
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        id: rustup
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Cache dependencies
+        uses: actions/cache@v2
+        id: cache-deps
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+          key: deps-${{ hashfiles('./Cargo.lock') }}
+
+      - name: Build release
+        id: build
+        env:
+          RUSTFLAGS: -C link-arg=-s
+        run: |
+          cargo build --bins --release
+
+      - name: Package release (Windows)
+        if: matrix.os == 'windows'
+        run: |
+          7z a ${{ matrix.asset }} .\target\release\cargo-ci-precache.exe
+
+      - name: Package release
+        if: matrix.os != 'windows'
+        working-directory: ./target/release
+        run: |
+          tar -czf ../../${{ matrix.asset }} cargo-ci-precache
+
+      - name: Upload release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./${{ matrix.asset }}
+          asset_name: ${{ matrix.asset }}
+          asset_content_type: ${{ matrix.asset-type }}
