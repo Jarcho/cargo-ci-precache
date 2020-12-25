@@ -1,4 +1,4 @@
-name: Test
+name: CI
 
 on:
   push:
@@ -15,12 +15,48 @@ on:
       - ".github/update.yaml"
       - "CHANGELOG.md"
       - "README.md"
+  schedule:
+    - cron: "0 0 * * 0,3"
 
 env:
   CARGO_INCREMENTAL: 0
 
 jobs:
+  check-update:
+    if: github.event_name == 'schedule'
+    name: Check for updates
+    runs-on: ubuntu-latest
+    outputs:
+      has_updates: ${{ steps.update.outputs.has_updates }}
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        id: rustup
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: cargo update
+        id: update
+        run: |
+          cp Cargo.lock Cargo.lock.old
+          cargo update
+          cmp --silent Cargo.lock Cargo.lock.old \
+            && echo "::set-output name=has_updates::false" \
+            || echo "::set-output name=has_updates::true"
+
+      - name: Upload lockfile
+        if: steps.update.outputs.has_updates == 'true'
+        uses: actions/upload-artifact@v2
+        with:
+          name: lockfile
+          path: |
+            ./Cargo.lock
+
   test-stable:
+    if: github.event_name != 'schedule' || needs.check-update.outputs.has_updates == 'true'
     strategy:
       matrix:
         os: [ubuntu, windows, macos]
@@ -40,6 +76,12 @@ jobs:
           profile: minimal
           override: true
           components: ${{ matrix.components }}
+
+      - name: Download lockfile
+        if: needs.check-update.outputs.has_updates == 'true'
+        uses: actions/download-artifact@v2
+        with:
+          name: lockfile
 
       - name: Cache dependencies
         uses: actions/cache@v2
@@ -85,3 +127,26 @@ jobs:
       - name: Pre-cache build dependencies
         if: steps.cache-build-deps.outputs.cache-hit != 'true'
         run: cargo run -- target --temp=./temp
+
+  push-lockfile:
+    needs: [test-stable, check-update]
+    if: needs.test-stable.result == 'success' && needs.check-update.outputs.has_updates == 'true'
+
+    name: Push lockfile
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Download lockfile
+        uses: actions/download-artifact@v2
+        with:
+          name: lockfile
+
+      - name: Push lockfile
+        run: |
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+          git add Cargo.lock
+          git commit -m "Update Cargo.lock"
+          git push 'https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY' main
