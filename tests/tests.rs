@@ -32,7 +32,7 @@ fn gather_items(target_dir: &Path) -> Vec<PathBuf> {
 }
 
 fn split_name_hash(s: &str) -> Option<(String, &str)> {
-    let mut iter = s.rsplitn(2, "-");
+    let mut iter = s.rsplitn(2, '-');
     let (hash, name) = (iter.next()?, iter.next()?);
     Some((
         name.strip_prefix("lib").unwrap_or(name).replace("-", "_"),
@@ -45,7 +45,7 @@ fn make_list<T: AsRef<str>>(mut iter: impl Iterator<Item = T>) -> String {
     if let Some(s) = iter.next() {
         res.push_str(s.as_ref());
     }
-    while let Some(s) = iter.next() {
+    for s in iter {
         res.push_str(", ");
         res.push_str(s.as_ref())
     }
@@ -140,9 +140,9 @@ impl Args {
 
         // List of all unexpected crates being removed.
         if !unexpected_removals.is_empty() {
-            write!(
+            writeln!(
                 msg,
-                "unexpected crate removals: {}\n",
+                "unexpected crate removals: {}",
                 make_list(unexpected_removals.iter())
             )
             .unwrap();
