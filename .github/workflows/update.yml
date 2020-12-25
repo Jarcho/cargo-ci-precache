@@ -28,7 +28,9 @@ jobs:
         run: |
           cp Cargo.lock Cargo.lock.old
           cargo update
-          cmp --silent Cargo.lock Cargo.lock.old && echo "::set-output name=has-updates::false" || echo "::set-output name=has-updates::true"
+          cmp --silent Cargo.lock Cargo.lock.old \
+            && echo "::set-output name=has-updates::false" \
+            || echo "::set-output name=has-updates::true"
 
       - name: Upload lock file
         if: steps.update.outputs.has-updates == 'true'
@@ -77,6 +79,13 @@ jobs:
           key: deps-${{ hashfiles('./Cargo.lock') }}
           restore-keys: deps
 
+      - name: Fetch Dependencies
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          cargo fetch --target x86_64-pc-windows-msvc
+          cargo fetch --target x86_64-apple-darwin
+          cargo fetch --target x86_64-unknown-linux-gnu
+
       - name: Cache build dependencies
         uses: actions/cache@v2
         id: cache-build-deps
@@ -86,20 +95,16 @@ jobs:
           key: build-deps-${{ steps.rustup.outputs.rustc_hash }}-${{ hashfiles('./Cargo.lock') }}
           restore-keys: build-deps-${{ steps.rustup.outputs.rustc_hash }}
 
-      - name: Fetch Dependencies
-        if: steps.cache-deps.outputs.cache-hit != 'true'
-        run: cargo fetch
-
       - name: Test
-        run: cargo test --all
+        run: cargo test --workspace
 
       - name: Format
         if: matrix.os == 'ubuntu'
-        run: cargo fmt --all -- --check
+        run: cargo fmt --workspace -- --check
 
       - name: Clippy
         if: matrix.os == 'ubuntu'
-        run: cargo clippy --all -- -D warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Pre-cache dependencies
         if: steps.cache-deps.outputs.cache-hit != 'true'
