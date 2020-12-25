@@ -20,6 +20,9 @@ jobs:
         run: |
           v=$(grep ' *version *= *' Cargo.toml | head -1 | cut -d \" -f 2)
           echo "::set-output name=version::v$v"
+          grep -q "-" <<< "$v" && \
+            echo '::set-output name=prerelease::true' || \
+            echo '::set-output name=prerelease::false'
 
       # fail if the tag already exists
       - name: Check for version tag
@@ -47,7 +50,7 @@ jobs:
           git add CHANGELOG.md
           git commit -m "Update changelog to ${{ steps.read-version.outputs.version }}"
           git tag -a "${{ steps.read-version.outputs.version }}" -m "Release ${{ steps.read-version.outputs.version }}"
-          git push 'https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY' --follow-tags
+          git push --follow-tags 'https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY' main
 
       - name: Create release
         id: create-release
@@ -58,7 +61,7 @@ jobs:
           tag_name: ${{ steps.read-version.outputs.version }}
           release_name: ${{ steps.read-version.outputs.version }}
           draft: true
-          prerelease: false
+          prerelease: ${{ steps.read-version.outputs.prerelease }}
 
   build-release:
     needs: create-release
