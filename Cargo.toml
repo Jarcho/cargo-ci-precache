@@ -3,6 +3,12 @@ name = "cargo-ci-precache"
 version = "0.1.0"
 authors = ["Jason Newcomb <jsnewcomb@pm.me>"]
 edition = "2018"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Jarcho/cargo-ci-precache"
+description = "Pre-cache action for CI servers. Deletes frequently changed and outdated files/"
+exclude = [".github/*"]
+readme = "README.md"
+categories = ["command-line-utilities", "development-tools::cargo-plugins"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
