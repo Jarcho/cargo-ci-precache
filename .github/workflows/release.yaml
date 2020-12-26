@@ -14,6 +14,9 @@ jobs:
       version: ${{ steps.read-version.outputs.version }}
 
     steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v2
+
       - name: Read version
         id: read-version
         run: |
@@ -84,7 +87,9 @@ jobs:
             asset-type: application/gzip
 
     steps:
+      - run: git config --global core.autocrlf false
       - uses: actions/checkout@v2
+
       - uses: actions-rs/toolchain@v1
         id: rustup
         with:

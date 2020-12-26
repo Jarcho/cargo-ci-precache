@@ -32,7 +32,9 @@ jobs:
       has_updates: ${{ steps.update.outputs.has_updates }}
 
     steps:
+      - run: git config --global core.autocrlf false
       - uses: actions/checkout@v2
+
       - uses: actions-rs/toolchain@v1
         id: rustup
         with:
@@ -70,7 +72,9 @@ jobs:
     name: ${{ matrix.os }}-stable
 
     steps:
+      - run: git config --global core.autocrlf false
       - uses: actions/checkout@v2
+
       - uses: actions-rs/toolchain@v1
         id: rustup
         with:
@@ -138,6 +142,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - run: git config --global core.autocrlf false
       - uses: actions/checkout@v2
 
       - name: Download lockfile
