@@ -49,7 +49,9 @@ jobs:
     runs-on: ${{ matrix.os }}-latest
 
     steps:
+      - run: git config --global core.autocrlf false
       - uses: actions/checkout@v2
+
       - uses: actions-rs/toolchain@v1
         id: rustup
         with:
