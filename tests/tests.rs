@@ -110,7 +110,8 @@ impl Args {
         for item in gather_items(&target_dir) {
             let name = item.file_name().unwrap().to_str().unwrap();
             let name = name.strip_prefix("lib").unwrap_or(name);
-            if !name.starts_with(self.project_name) {
+            if !(name.starts_with(self.project_name) || name == "examples" || name == "incremental")
+            {
                 panic!("unexpected crate removal on first build: {}", name);
             }
         }
