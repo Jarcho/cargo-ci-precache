@@ -116,7 +116,7 @@ jobs:
 
       - name: Format
         if: matrix.os == 'ubuntu'
-        run: cargo fmt --workspace -- --check
+        run: cargo fmt --all -- --check
 
       - name: Clippy
         if: matrix.os == 'ubuntu'
