@@ -112,8 +112,8 @@ jobs:
         with:
           path: |
             ./target/debug
-          key: build-deps-${{ steps.rustup.outputs.rustc_hash }}-${{ hashfiles('./Cargo.lock') }}
-          restore-keys: build-deps-${{ steps.rustup.outputs.rustc_hash }}
+          key: build-deps2-${{ steps.rustup.outputs.rustc_hash }}-${{ hashfiles('./Cargo.lock') }}
+          restore-keys: build-deps2-${{ steps.rustup.outputs.rustc_hash }}
 
       - name: Test
         run: cargo test --workspace
