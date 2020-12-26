@@ -49,6 +49,7 @@ jobs:
     runs-on: ${{ matrix.os }}-latest
 
     steps:
+      # Makes sure line endings on Cargo.lock are the same on all platforms.
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@v2
 
