@@ -5,16 +5,18 @@ on:
     branches: [main]
     paths-ignore:
       - ".github/release.yaml"
-      - ".github/update.yaml"
       - "CHANGELOG.md"
       - "README.md"
+      - "LICENSE-APACHE"
+      - "LICENSE-MIT"
   pull_request:
     branches: [main]
     paths:
       - ".github/release.yaml"
-      - ".github/update.yaml"
       - "CHANGELOG.md"
       - "README.md"
+      - "LICENSE-APACHE"
+      - "LICENSE-MIT"
   schedule:
     - cron: "0 0 * * 0,3"
 
