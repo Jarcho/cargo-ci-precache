@@ -50,8 +50,16 @@ jobs:
 
     steps:
       # Makes sure line endings on Cargo.lock are the same on all platforms.
+      # Needed to share the cache to be shared between platforms
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@v2
+
+      # See: https://github.com/actions/cache/issues/403
+      - name: Install GNU tar (macos)
+        if: matrix.os == 'macos'
+        run: |
+          brew install gnu-tar
+          echo "PATH=/usr/local/opt/gnu-tar/libexec/gnubin:$PATH" >> $GITHUB_ENV
 
       - uses: actions-rs/toolchain@v1
         id: rustup
