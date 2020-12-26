@@ -63,11 +63,10 @@ jobs:
     if: github.event_name != 'schedule' || needs.check-update.outputs.has_updates == 'true'
     strategy:
       matrix:
-        os: [macos]
-        # os: [ubuntu, windows, macos]
-        # include:
-        #   - os: ubuntu
-        #     components: rustfmt, clippy
+        os: [ubuntu, windows, macos]
+        include:
+          - os: ubuntu
+            components: rustfmt, clippy
     runs-on: ${{ matrix.os }}-latest
 
     name: ${{ matrix.os }}-stable
@@ -83,6 +82,12 @@ jobs:
           profile: minimal
           override: true
           components: ${{ matrix.components }}
+
+      - name: Install GNU tar (macos)
+        if: matrix.os == 'macos'
+        run: |
+          brew install gnu-tar
+          echo "PATH=/usr/local/opt/gnu-tar/libexec/gnubin:$PATH" >> $GITHUB_ENV
 
       - name: Download lockfile
         if: needs.check-update.outputs.has_updates == 'true'
@@ -113,8 +118,8 @@ jobs:
         with:
           path: |
             ./target/debug
-          key: build-deps3-${{ steps.rustup.outputs.rustc_hash }}-${{ hashfiles('./Cargo.lock') }}
-          restore-keys: build-deps3-${{ steps.rustup.outputs.rustc_hash }}
+          key: build-deps4-${{ steps.rustup.outputs.rustc_hash }}-${{ hashfiles('./Cargo.lock') }}
+          restore-keys: build-deps4-${{ steps.rustup.outputs.rustc_hash }}
 
       - name: Test
         run: cargo test --workspace
@@ -131,9 +136,9 @@ jobs:
         if: steps.cache-deps.outputs.cache-hit != 'true'
         run: cargo run -- cargo-cache --temp=./temp
 
-      # - name: Pre-cache build dependencies
-      #   if: steps.cache-build-deps.outputs.cache-hit != 'true'
-      #   run: cargo run -- target --temp=./temp
+      - name: Pre-cache build dependencies
+        if: steps.cache-build-deps.outputs.cache-hit != 'true'
+        run: cargo run -- target --temp=./temp
 
   push-lockfile:
     needs: [test-stable, check-update]
