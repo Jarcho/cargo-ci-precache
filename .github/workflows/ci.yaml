@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths-ignore:
-      - ".github/release.yaml"
+      - ".github/workflows/release.yaml"
       - "CHANGELOG.md"
       - "README.md"
       - "LICENSE-APACHE"
@@ -12,7 +12,7 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - ".github/release.yaml"
+      - ".github/workflows/release.yaml"
       - "CHANGELOG.md"
       - "README.md"
       - "LICENSE-APACHE"
