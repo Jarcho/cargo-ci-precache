@@ -50,7 +50,7 @@ jobs:
           git add CHANGELOG.md
           git commit -m "Update changelog to ${{ steps.read-version.outputs.version }}"
           git tag -a "${{ steps.read-version.outputs.version }}" -m "Release ${{ steps.read-version.outputs.version }}"
-          git push --follow-tags 'https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY' main
+          git push --follow-tags 'https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}' main
 
       - name: Create release
         id: create-release
