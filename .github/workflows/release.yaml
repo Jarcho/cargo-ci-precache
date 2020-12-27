@@ -60,6 +60,7 @@ jobs:
         with:
           tag_name: ${{ steps.read-version.outputs.version }}
           release_name: ${{ steps.read-version.outputs.version }}
+          body_path: ./RELEASE_NOTES.md
           draft: true
           prerelease: ${{ steps.read-version.outputs.prerelease }}
 
