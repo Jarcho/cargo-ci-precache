@@ -27,7 +27,7 @@ jobs:
       # fail if the tag already exists
       - name: Check for version tag
         run: |
-          if [ -n $(git tag -l "${{ steps.read-version.outputs.version }}") ]; then
+          if [ -n "$(git tag -l "${{ steps.read-version.outputs.version }}")" ]; then
             exit 1
           fi
 
