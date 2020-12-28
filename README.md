@@ -90,13 +90,14 @@ jobs:
           cargo fetch --target x86_64-unknown-linux-gnu
 
       # Cache the target directory.
+      # Cargo.toml included to detect feature changes
       - name: Cache build dependencies
         uses: actions/cache@v2
         id: cache-build-deps
         with:
           path: |
             ./target/debug
-          key: build-deps-${{ steps.rustup.outputs.rustc_hash }}-${{ hashfiles('./Cargo.lock') }}
+          key: build-deps-${{ steps.rustup.outputs.rustc_hash }}-${{ hashfiles('./Cargo.lock', '**/Cargo.toml') }}
           restore-keys: build-deps-${{ steps.rustup.outputs.rustc_hash }}
 
       # Run tests.

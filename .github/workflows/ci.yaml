@@ -119,7 +119,7 @@ jobs:
         with:
           path: |
             ./target/debug
-          key: build-deps4-${{ steps.rustup.outputs.rustc_hash }}-${{ hashfiles('./Cargo.lock') }}
+          key: build-deps4-${{ steps.rustup.outputs.rustc_hash }}-${{ hashfiles('./Cargo.lock', '**/Cargo.toml') }}
           restore-keys: build-deps4-${{ steps.rustup.outputs.rustc_hash }}
 
       - name: Test
