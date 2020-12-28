@@ -44,7 +44,17 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu, windows, macos]
-
+        include:
+          - os: ubuntu
+            components: rustfmt, clippy
+            platform: x86_64-unknown-linux-gnu
+            ci_precache_checksum: a2400ce8ca692496cc2ff1c8b16f912adc548b8f4b44488658e59df09d97d8b6
+          - os: macos
+            platform: x86_64-apple-darwin
+            ci_precache_checksum: d2335a9ddf96d8c9244caad4cc2f535fcf0c4754296b0fb3ce9c1610800c1881
+          - os: windows
+            platform: x86_64-pc-windows-msvc
+            ci_precache_checksum: 5513b98095a37162e5c1bf9c9abaa4805f971fdc89bcc650217bfc5f0cbe533e
     name: ${{ matrix.os }}-stable
     runs-on: ${{ matrix.os }}-latest
 
@@ -110,6 +120,9 @@ jobs:
         run: |
           cd ~/.cargo/bin
           Invoke-WebRequest 'https://github.com/Jarcho/cargo-ci-precache/releases/download/v0.1.0/cargo-ci-precache_windows_v0.1.0.7z' -OutFile "ci-precache.7z"
+          if($(get-filehash -Algorithm sha256 ci-precache.7z).hash.tolower() != '${{matrix.ci_precache_checksum }}') {
+            exit 1
+          }
           7z e "ci-precache.7z" -y
 
       - name: Download cargo-ci-precache
@@ -117,6 +130,9 @@ jobs:
         run: |
           cd ~/.cargo/bin
           curl 'https://github.com/Jarcho/cargo-ci-precache/releases/download/v0.1.0/cargo-ci-precache_${{ matrix.os }}_v0.1.0.tar.gz' -o ci-precache.tar.gz
+          if [ "$(shasum -a 256 ci-precache.tar.gz | cut -d ' ' -f 1)" != "${{ matrix.ci_precache_checksum }}" ]; then
+            exit 1
+          fi
           tar -xzf ci-precache.tar.gz
 
       # Prep the global crate cache. Only needed if a lockfile is checked in.
