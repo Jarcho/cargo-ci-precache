@@ -127,7 +127,7 @@ jobs:
       # Prep the target directory.
       - name: Pre-cache build dependencies
         if: steps.cache-build-deps.outputs.cache-hit != 'true'
-        run: cargo ci-precache target --temp=./target/.temp
+        run: cargo ci-precache target --temp=./target/.temp --filter-platform=${{ matrix.platform }}
 ```
 
 ## Note on lockfiles

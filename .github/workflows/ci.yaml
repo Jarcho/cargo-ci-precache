@@ -67,6 +67,12 @@ jobs:
         include:
           - os: ubuntu
             components: rustfmt, clippy
+            platform: x86_64-unknown-linux-gnu
+          - os: macos
+            platform: x86_64-apple-darwin
+          - os: windows
+            platform: x86_64-pc-windows-msvc
+
     runs-on: ${{ matrix.os }}-latest
 
     name: ${{ matrix.os }}-stable
@@ -139,7 +145,7 @@ jobs:
 
       - name: Pre-cache build dependencies
         if: steps.cache-build-deps.outputs.cache-hit != 'true'
-        run: cargo run -- target --temp=./temp
+        run: cargo run -- target --temp=./temp --filter-platform=${{ matrix.platform }}
 
   push-lockfile:
     needs: [test-stable, check-update]
