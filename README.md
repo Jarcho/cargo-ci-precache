@@ -87,7 +87,7 @@ jobs:
           path: |
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
-            ~/.cargo/git
+            ~/.cargo/git/db
           key: deps-${{ hashfiles('./Cargo.lock') }}
           restore-keys: deps
 
